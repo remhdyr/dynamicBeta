@@ -15,10 +15,10 @@ This repository provides a minimum working example of the code. As the insect si
 
 * Basic Pytorch dependency
 * Tested on Pytorch 1.3, Python 3.6 
-* Predict using the pretrained model: 
-python predict.py --data DATA_DIR --model saved_models/lungVAE.pt
+* Synthesize new sample data:  
+python Synthesize_signals.py
 * Train the model from scratch: 
-python train.py --data DATA_DIR
+python DynamicBetaVAE.py
 
 ### Usage guidelines ###
 
