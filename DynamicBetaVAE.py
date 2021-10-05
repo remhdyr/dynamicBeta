@@ -902,6 +902,78 @@ for epoch in range(epoch, 1000):
                 else:
                     model.epsilon = 0.2
 
+    # Post training tasks
+    # Plot loss curves
+    if epoch % 5 == 0:
+        xmin = 0
+        x = np.arange(xmin, len(train_loss_list))
+        plt.close('all')
+        fig, axes = plt.subplots(4, sharex=True, figsize=[36, 18])
+        if epoch > 500:
+            axes[0].set_xlim([epoch-500, epoch])
+            axes[0].set_ylim([0, np.mean(train_loss_list[-1000:])*1.1])
+
+        # Plot total loss
+        axes[0].plot(x, train_loss_list[xmin:],
+                     color='steelblue', label='Training loss - Total')
+
+        # Lrec
+        axes[0].plot(x, Lrec[xmin:],
+                     color='steelblue', ls='--', label='$L_{rec}$')
+
+        # Lreg, with beta scaling
+        axes[0].plot(x, np.array(Lreg[xmin:])*np.array(beta_list[xmin:]),
+                     color='red', ls=':',
+                     label='$\\beta L_{reg}$')
+
+        # Lreg, without beta scaling
+        axes[0].plot(x, Lreg[xmin:],
+                     color='red', ls='--',
+                     label='$L_{reg}$')
+
+        # Semi Supervised Loss, with gamma scaling
+        axes[0].plot(x, ss_loss_list[xmin:],
+                     color='green', ls=':',
+                     label='$L_{cls}$')
+
+        # Plot beta
+        axes[1].plot(x, beta_list[xmin:], label='beta', color='red')
+        axes[1].plot(x, epsilon_list[xmin:], label='epsilon', color='orange')
+
+        # Plot delta rec
+        axes[2].plot(np.array(epochs)[xmin:],
+                      np.array(delta_rec_list)[xmin:],
+                      label='$\Delta_{rec}$', color='Blue')
+
+       # Plot delta reg
+        axes[2].plot(np.array(epochs)[xmin:],
+                      np.array(delta_reg_list)[xmin:],
+                      label='$\Delta_{reg}$', color='Red')
+
+       # Plot delta Lrec
+        axes[3].plot(np.array(epochs)[xmin:],
+                      np.array(delta_Lrec_list)[xmin:],
+                      label='$\Delta L_{rec}$', color='Green')
+
+        axes[3].plot(np.array(epochs)[xmin:],
+                     pd.Series(delta_rec_list[xmin:]).apply(sign).values,
+                     label='$\psi[\Delta_{rec}]$', color='Blue')
+        axes[3].plot(np.array(epochs)[xmin:],
+                     pd.Series(delta_reg_list[xmin:]).apply(sign).values,
+                     label='$\psi[\Delta_{reg}]$', color='Red')
+
+        # Make plots pretty
+        axes[0].legend(loc=3, ncol=3)
+        axes[0].set_ylabel('Loss')
+
+        axes[3].set_xlabel('Number of epochs')
+
+        for ax in axes:
+            # ax.set_xticks(np.array(checks)[xmin:, 0])
+            ax.grid()
+            ax.legend()
+        fig.savefig(path + 'loss curves/' + 'Loss curves ' + str(epoch))
+
 # Save model
 torch.save(model.state_dict(), path + 'model.pt')
 
