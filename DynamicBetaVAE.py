@@ -11,14 +11,8 @@ import matplotlib.cm as cm
 import matplotlib.offsetbox as ob
 
 import numpy as np
-import scipy.signal as ss
 import pickle
 
-import sklearn.manifold as manifold
-from sklearn.decomposition import PCA
-import sklearn.cluster as skcl
-
-import argparse
 import torch
 import torch.utils.data
 from torch.utils.data import Dataset, DataLoader
@@ -28,71 +22,52 @@ from torch.nn import functional as F
 import time
 import shutil
 import pandas as pd
-from matplotlib.lines import Line2D
 
 
-vanilla = False
-semi_supervised = False
-
-print('Vanilla', vanilla)
-print('SS', semi_supervised)
-
-# torch.autograd.set_detect_anomaly(True)
 # %% Prepare paths and environment
 master_path = os.getcwd() + '/'
 path_to_data = master_path + 'Data/'
-folder_name = 'Test/'
+folder_name = 'Test2/'
 
 # If true, beta is not adjusted dynamically
 vanilla = False
+
 # If True, the semi-supervision is added
 semi_supervised = False
 
 # Plot resolution
 dpi = 75
+
 # %% Set up VAE
 batch_size = 256
 log_interval = 10
 device = torch.device("cuda")
 kwargs = {'num_workers': 1, 'pin_memory': True}
 
+# Hyper parameters
+a = 0.2
+b = 0.05
+w1 = 1.2
+w2 = 1.2
+w3 = 0.9
+w4 = 1.1
+
 max_beta = 2
-# %% Load events
+# %% Load data
 fft_lists = []
 species = []
 # Loop over all folders
 for file in os.listdir(path_to_data):
+    
     # Load FFT pickle into list
     with open(path_to_data + file, 'rb') as handle:
         fft_list = pickle.load(handle)
+    
     fft_lists.append(fft_list)
     species.append(file)
 
 # Frequency axis
 ftx = np.linspace(0, 2000, 193)
-
-
-# %% Define a normalization function
-def normalize(array, mode='max', multiple=False):
-    assert mode in ['max', 'median']
-
-    if multiple is False:
-        if mode == 'median':
-            return (array - np.min(array))/(np.median(array) - np.min(array))
-
-        if mode == 'max':
-            return (array - np.min(array))/(np.max(array) - np.min(array))
-
-    else:
-        if mode == 'median':
-            top = array - np.min(array, axis=0)
-            bottom = np.median(array, axis=0) - np.min(array, axis=0)
-            return top/bottom
-
-        if mode == 'max':
-            top = array - np.min(array, axis=0)
-            bottom = np.max(array, axis=0) - np.min(array, axis=0)
-            return top/bottom
 
 
 # %% Assemble datasets
@@ -150,6 +125,37 @@ time_sigs = []
 
 
 # %% Define data loader and split into training and test set
+def normalize(array, mode='max', multiple=False):
+    assert mode in ['max', 'median']
+
+    if multiple is False:
+        if mode == 'median':
+            return (array - np.min(array))/(np.median(array) - np.min(array))
+
+        if mode == 'max':
+            return (array - np.min(array))/(np.max(array) - np.min(array))
+
+    else:
+        if mode == 'median':
+            top = array - np.min(array, axis=0)
+            bottom = np.median(array, axis=0) - np.min(array, axis=0)
+            return top/bottom
+
+        if mode == 'max':
+            top = array - np.min(array, axis=0)
+            bottom = np.max(array, axis=0) - np.min(array, axis=0)
+            return top/bottom
+
+
+def sign(value):
+    if value > 0:
+        return 1
+    if value == 0:
+        return 0
+    if value < 0:
+        return -1
+    
+
 class insectSpectra(Dataset):
     def __init__(self, data, targets, batch_norm=False, event_norm=True):
 
@@ -210,13 +216,6 @@ test_loader = DataLoader(testSet, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(valSet, batch_size=batch_size, shuffle=True)
 ss_loader = DataLoader(ss_set, batch_size=batch_size, shuffle=True)
 ss_val_loader = DataLoader(ss_val_set, batch_size=batch_size, shuffle=True)
-
-# Sanity checks
-print(train_loader.dataset.data.shape)
-print(val_loader.dataset.data.shape)
-print(test_loader.dataset.data.shape)
-print(ss_loader.dataset.data.shape)
-print(ss_val_loader.dataset.data.shape)
 
 # Store data shape for plotting etc.
 data_shape = train_loader.dataset.data.shape[1:]
@@ -570,7 +569,7 @@ def validate_ss(epoch):
     return ss
 
 
-# %% General Support functions
+# %% Plotting functions
 def plot_spectra(event, ax, n=145, x=False, scale=1, alpha=1, lw=1,
                  autoscale=True, colors=False):
     """Plots an event and returns the axis"""
@@ -642,10 +641,6 @@ def scatterline(data, positions, ax=False, color=None):
     return ax.get_figure()
 
 
-# Create tsne object
-tsne = manifold.TSNE(n_components=2, init='pca', random_state=0)
-
-
 def vizualise_latent_space(epoch, dataloader=val_loader, label=None,
                            close=True, color='steelblue',
                            save=True, fig_dots=None, fig_lines=None,
@@ -653,7 +648,6 @@ def vizualise_latent_space(epoch, dataloader=val_loader, label=None,
                            title=False):
     global model
     global path
-    global tsne
 
     # For most cases
     if bottleneck == 2:
@@ -716,6 +710,9 @@ def vizualise_latent_space(epoch, dataloader=val_loader, label=None,
                                     np.array(mu.detach().cpu()), ax=ax_l,
                                     color=color)
 
+    if title is not False:
+        fig.suptitle(title)
+
     # Save figure to disk
     if save is True:
         fig_dots.savefig(path + 'latent spaces/latent_' + str(epoch), dpi=dpi)
@@ -761,17 +758,20 @@ def pave_the_road(folder_name):
 
     comparisons = master_path + folder_name + 'comparisons/'
     latent = master_path + folder_name + 'latent spaces/'
+    loss_curves = master_path + folder_name + 'loss curves/'
     if os.path.isdir(master_path + folder_name) is False:
         os.mkdir(master_path + folder_name)
         os.mkdir(comparisons)
         os.mkdir(latent)
-
+        os.mkdir(loss_curves)
     else:
         for file in os.listdir(comparisons)[::-1]:
             os.remove(comparisons + file)
         for file in os.listdir(latent)[::-1]:
             os.remove(latent + file)
-    
+        for file in os.listdir(loss_curves)[::-1]:
+            os.remove(loss_curves + file)
+
     return master_path + folder_name
 
 
@@ -792,29 +792,28 @@ model.epsilon = 0
 
 # Logging parameters
 train_loss_list = []
-bce_loss_list = []
-kld_loss_list = []
 val_loss_list = []
 test_loss_list = []
 ss_loss_list = []
 
 beta_list = []
 epsilon_list = []
-delta_list = [[0, 0]]
-delta2_list = [[0, 0]]
-delta3_list = [[0, 0]]
-changes = [[0, 0]]
 
-max_beta = 2
+Lrec = []
+Lreg = []
 
-early_stopping = False
-last_change = 0
+epochs = []
+delta_rec_list = []
+delta_reg_list = []
+delta_Lrec_list = []
+term_1_list = []
+term_2_list = []
+changes = []
 
-    
 # %% Main loop
 epoch = 0
-for epoch in range(epoch, 100):
-
+last_change = 0
+for epoch in range(epoch, 1000):
     # Emergency break, to keep variables available for debugging
     output = train(epoch)
 
@@ -831,33 +830,16 @@ for epoch in range(epoch, 100):
     train_loss_list.append(tr_loss)
     val_loss_list.append(val_loss)
     test_loss_list.append(te_loss)
-    bce_loss_list.append(bce_loss)
-    kld_loss_list.append(kld_loss)
     ss_loss_list.append(ss_loss)
+    
+    Lrec.append(bce_loss)
     beta_list.append(model.beta)
     epsilon_list.append(model.epsilon)
 
-    best_epoch = np.argmin(bce_loss_list)
-    bce_best = bce_loss_list[best_epoch]
-
-    # Monitor progression
-    bce_old = bce_loss_list[last_change]
-    bce_last = np.mean(bce_loss_list[-5:])
-    delta = 1 - bce_last/bce_old
-    delta2 = 1 - bce_last/bce_best
-
-    # Make sure that the kld does not go bananas
-    kld_unscaled = (np.array(kld_loss_list)/np.array(beta_list))
-    kld_unscaled[np.isnan(kld_unscaled)] = 1e6
-    kld_best = np.min(kld_unscaled)
-    try:
-        delta3 = 1 - (np.array(kld_loss_list[-5:]).mean()/model.beta)/kld_best
-    except Exception:
-        delta3 = 0
-
-    delta_list.append([epoch, delta])
-    delta2_list.append([epoch, delta2])
-    delta3_list.append([epoch, delta3])
+    if model.beta > 0:
+        Lreg.append(kld_loss/model.beta)
+    else:
+        Lreg.append(np.nan)
     print('Beta:', model.beta)
 
     title = str(model.beta)
@@ -872,52 +854,42 @@ for epoch in range(epoch, 100):
                                dataloader=val_loader)
 
     # Adjust the beta term
+    if epoch == 24:
+        model.beta = 1e-3
+        
     # Get the ball rolling before fiddeling about
     if (model.beta < max_beta) & (epoch > 25):
         if vanilla is True:
                 model.beta = 1
         else:
-            # Never allow beta to go negative!
-            if model.beta <= 0:
-                model.beta = 0.05
+            if (epoch - last_change) > 10:
+                delta_rec = Lrec[-1] - w1*np.min(Lrec[25:])
+                delta_reg = Lreg[-1] - w2*np.min(Lreg[25:])
                 
-            # Evaluate progress
-            if (epoch % 5 == 0) & ((epoch - last_change) > 15):    
-                # If KLD within sensible limits
-                if delta3 > -0.2:
-                    # If BCE loss has increased by 10% since last change
-                    if delta < -0.1:
-                        model.beta = model.beta - 0.05
-                        last_change = epoch
-                        changes.append([epoch, -1])
-                
-                    # If BCE loss has increased by 20% since best epoch
-                    if delta2 < -0.2:
-                        model.beta = model.beta - 0.1
-                        last_change = epoch
-                        changes.append([epoch, -1])
-                
-                # If the bce hasn't detoriated completely!
-                if delta2 > -0.2:
-                    # If improved by 5% since last change:
-                    if delta > 0.05:
-                        model.beta = model.beta + 0.1
-                        last_change = epoch
-                        changes.append([epoch, 1])
-                
-                    # If KLD loss has increased by 20% compared to optimum
-                    if delta3 < -0.2:
-                        model.beta = model.beta + 0.1
-                        last_change = epoch
-                        changes.append([epoch, 1])
-                
-                    if epoch - last_change > 500:
-                        model.beta = model.beta + 0.1
-                        last_change = epoch
-
-			# Never allow beta to go negative!
-            if model.beta <= 0:
-                model.beta = 0.05
+                # Small check
+                delta_Lrec = sign(Lrec[-1] - w3*Lrec[last_change]) + sign(Lrec[-1] - w4*Lrec[last_change])
+            
+                # Decrease beta term
+                term_1 = (b/4)*(1 - sign(delta_reg))*(1 + sign(delta_rec) + delta_Lrec)
+            
+                # Increase beta term
+                term_2 = (a/4)*(1 - sign(delta_rec))*((1 - sign(delta_reg)- delta_Lrec))
+            
+                model.beta = model.beta - term_1 + term_2
+                if term_2 - term_1 != 0:
+                    last_change = epoch
+                    changes.append(epoch)
+                    
+                epochs.append(epoch)
+                delta_rec_list.append(delta_rec)
+                delta_reg_list.append(delta_reg)
+                delta_Lrec_list.append(delta_Lrec)
+                term_1_list.append(term_1)
+                term_2_list.append(term_2)
+    
+    			# Never allow beta to go negative!
+                if model.beta <= 0:
+                    model.beta = 0.05
 						
         if semi_supervised is True:
             # Supervised clustering loss
@@ -933,7 +905,3 @@ for epoch in range(epoch, 100):
 # Save model
 torch.save(model.state_dict(), path + 'model.pt')
 
-# Load model
-# model2 = VAE()
-# model2.load_state_dict(torch.load(path + 'model.pt'))
-# model2.eval()
