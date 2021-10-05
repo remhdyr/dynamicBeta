@@ -1,10 +1,9 @@
 # dynamicBeta
-Variational Auto Encoder (VAE) for biodiversity assessment of insect signals. 
+Dynamice _beta_ Variational Auto Encoder (VAE) for biodiversity assessment of insect signals. 
 A fully unsupervised model is outperforming conventional methods, such as PCA whereas a semi-supervised method improves upon the unsupervised model results even further.
 
 This code is made publicly available together with the article 
-"Variational Auto Encoder (VAE) for biodiversity assessment of insect signals."
-accepted for publication by Ecological Informatics, 2021-10-05.
+"Dynamic _beta_ VAEs  for quantifying biodiversity by clustering optically recorded insect signals", accepted for publication by Ecological Informatics, 2021-10-05.
 
 This repository provides a minimum working example of the code. As the insect
 signals used in the published work are used commercially by FaunaPhotonics,
