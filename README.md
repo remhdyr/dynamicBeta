@@ -14,9 +14,13 @@ This repository provides a minimum working example of the code. As the insect si
 ### How do I get set up? ###
 
 * Basic Pytorch dependency
+pip install -r requirements.txt
+
 * Tested on Pytorch 1.3, Python 3.6 
+
 * Synthesize new sample data:  
 python Synthesize_signals.py
+
 * Train the model from scratch: 
 python DynamicBetaVAE.py
 
