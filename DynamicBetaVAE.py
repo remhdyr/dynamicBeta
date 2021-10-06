@@ -4,25 +4,20 @@ Created on Fri Oct  9 14:42:51 2020
 
 @author: Klas Rydhmer
 """
-from __future__ import print_function
+
 import os
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.offsetbox as ob
 
-import numpy as np
 import pickle
+import numpy as np
 
 import torch
 import torch.utils.data
 from torch.utils.data import Dataset, DataLoader
 from torch import nn, optim
 from torch.nn import functional as F
-
-import time
-import shutil
-import pandas as pd
-
 
 # %% Prepare paths and environment
 master_path = os.getcwd() + '/'
@@ -42,7 +37,6 @@ dpi = 75
 batch_size = 256
 log_interval = 10
 device = torch.device("cuda")
-kwargs = {'num_workers': 1, 'pin_memory': True}
 
 # Hyper parameters
 a = 0.2
@@ -53,6 +47,7 @@ w3 = 0.9
 w4 = 1.1
 
 max_beta = 2
+
 # %% Load data
 fft_lists = []
 species = []
@@ -145,15 +140,6 @@ def normalize(array, mode='max', multiple=False):
             top = array - np.min(array, axis=0)
             bottom = np.max(array, axis=0) - np.min(array, axis=0)
             return top/bottom
-
-
-def sign(value):
-    if value > 0:
-        return 1
-    if value == 0:
-        return 0
-    if value < 0:
-        return -1
     
 
 class insectSpectra(Dataset):
@@ -327,11 +313,11 @@ def loss_function(recon_x, x, mu, logvar, beta, AE, ss=False):
         latent representation of original signals    
 
     logvar : tensor N, bottleneck size
-        I have currently no clue
+        Logaritmised variables
         
     Outputs:
     ----------
-    loss : tensor 1, ?
+    loss : tensor
         Calculated loss
         
     bce_log : numpy array
@@ -576,7 +562,7 @@ def plot_spectra(event, ax, n=145, x=False, scale=1, alpha=1, lw=1,
 
     try:
         event = np.array(event.detach().cpu())
-    except Exception as E:
+    except Exception:
         pass
 
     event = event[:, :n]
@@ -586,7 +572,7 @@ def plot_spectra(event, ax, n=145, x=False, scale=1, alpha=1, lw=1,
                   'tab:purple', 'tab:brown', 'tab:pink', 'tab:grey']
 
     if x is False:
-        x = np.linspace(0, 1500, n)
+        x = np.linspace(0, 2000, n)
 
     lines = []
     for j in range(len(event)):
@@ -780,10 +766,6 @@ plt.close('all')
 
 # Create / empty output folderes
 path = pave_the_road(folder_name)
-# generate filename with timestring
-copied_script_name = time.strftime("%Y-%m-%d_%H%M")
-# copy script
-shutil.copy(__file__, path + os.sep + copied_script_name)
 
 # Initialize network
 model = VAE(beta=0).to(device)
@@ -867,13 +849,13 @@ for epoch in range(epoch, 1000):
                 delta_reg = Lreg[-1] - w2*np.min(Lreg[25:])
                 
                 # Small check
-                delta_Lrec = sign(Lrec[-1] - w3*Lrec[last_change]) + sign(Lrec[-1] - w4*Lrec[last_change])
+                delta_Lrec = np.sign(Lrec[-1] - w3*Lrec[last_change]) + np.sign(Lrec[-1] - w4*Lrec[last_change])
             
                 # Decrease beta term
-                term_1 = (b/4)*(1 - sign(delta_reg))*(1 + sign(delta_rec) + delta_Lrec)
+                term_1 = (b/4)*(1 - np.sign(delta_reg))*(1 + np.sign(delta_rec) + delta_Lrec)
             
                 # Increase beta term
-                term_2 = (a/4)*(1 - sign(delta_rec))*((1 - sign(delta_reg)- delta_Lrec))
+                term_2 = (a/4)*(1 - np.sign(delta_rec))*((1 - np.sign(delta_reg) - delta_Lrec))
             
                 model.beta = model.beta - term_1 + term_2
                 if term_2 - term_1 != 0:
@@ -956,10 +938,10 @@ for epoch in range(epoch, 1000):
                       label='$\Delta L_{rec}$', color='Green')
 
         axes[3].plot(np.array(epochs)[xmin:],
-                     pd.Series(delta_rec_list[xmin:]).apply(sign).values,
+                     np.sign(delta_rec_list[xmin:]),
                      label='$\psi[\Delta_{rec}]$', color='Blue')
         axes[3].plot(np.array(epochs)[xmin:],
-                     pd.Series(delta_reg_list[xmin:]).apply(sign).values,
+                     np.sign(delta_reg_list[xmin:]),
                      label='$\psi[\Delta_{reg}]$', color='Red')
 
         # Make plots pretty
