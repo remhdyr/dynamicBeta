@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Oct  9 14:42:51 2020
-
-@author: Klas Rydhmer
+Originally adapted from: https://github.com/pytorch/examples/tree/master/vae
+@author: Klas Rydhmer, kkgr@ign.ku.dk
 """
 
 import os
@@ -36,7 +35,10 @@ dpi = 75
 # %% Set up VAE
 batch_size = 256
 log_interval = 10
-device = torch.device("cuda")
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+else:
+    device = "cpu"
 
 # Hyper parameters
 a = 0.2
