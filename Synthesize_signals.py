@@ -240,7 +240,7 @@ for i in range(len(species)):
 # %% Generate proxies for unlabelled field data
 time_signals = []
 for i in range(5000):
-    f0 = np.random.random_integers(50, 1000)
+    f0 = np.random.randint(50, 1000)
     body_size = np.random.randint(50, 10000)
     wing_size = np.random.randint(50, 5000)
     time_signals.append(gen_ts(f0=f0, body_size=body_size,
