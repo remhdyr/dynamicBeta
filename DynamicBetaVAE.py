@@ -41,7 +41,7 @@ else:
     device = "cpu"
 
 # Hyper parameters
-a = 0.2
+a = 0.05
 b = 0.05
 w1 = 1.2
 w2 = 1.2
