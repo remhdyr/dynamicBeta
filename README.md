@@ -41,7 +41,10 @@ python DynamicBetaVAE.py
 
 * kkgr@ign.ku.dk
 
-### Thanks 
+### Press coverage
+* University of Copenhagen press release. [en](https://science.ku.dk/english/press/news/2022/insect-wingbeats-will-help-quantify-biodiversity/) [da](https://science.ku.dk/presse/nyhedsarkiv/2022/insekters-vingeslag-skal-fortaelle-os-hvordan-det-gaar-med-biodiversiteten/) 
+* Other coverage in Danish. [1](https://videnskab.dk/teknologi-innovation/ny-dansk-opfindelse-insekters-vingeslag-kan-bruges-til-at-overvaage)
+* Other coverage in English. [1](https://cphpost.dk/?p=131520)
 
 
 
